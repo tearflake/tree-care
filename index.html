@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tree Care</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+    /*
+      width: fit-content;
+      margin-left:auto;
+      margin-right:auto;
+      font-size: 0.75em;
+    */
+        height: 100%;
+        width: 100%;
+        margin-top: 0px;
+        margin-left: 0px;
+    }
+    body {
+        overflow: hidden;
+    }
+    
+    pre {
+      font-family: 'Fira Code', monospace;
+      line-height: 1.5;
+      white-space: pre;
+    }
+  </style>
+</head>
+<body>
+<script src="edit.js"></script>
+<script src="s-expr.js"></script>
+<script src="tree.js"></script>
+<script src="parser.js"></script>
+
+<div id="edit" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;">
+    <div id="input" class="container" style="padding: 0; border: 0; margin: 0; position: absolute; top: 0em; left: 0; right: 0; bottom: 0.75em;">
+    </div>
+    <script>
+        var input1 = edit ("input");
+
+        function getCoords (text, offset) {
+            var i, ch, row = 1, col = 1;
+            if (text.length > 0)
+                for (i = 0; i < offset; i += 1) {
+                    ch = text.charCodeAt(i);
+                    if (ch === 13 || ch === 10) {
+                        if (ch === 13 && text.charCodeAt (i + 1) === 10)
+                            i += 1;
+
+                        row += 1;
+                        col = 1;
+                        
+                    } else
+                      col += 1;
+                }
+            
+            return {row: row, column: col};
+        }
+
+        document.addEventListener('selectionchange', function(e) {
+            var pos = getCoords(input1.getValue(), input1.getSelectionStart());
+            document.getElementById('lblGrammarCaret1').innerHTML = "(" + pos.row + ", " + pos.column + ")";
+        });                    
+    </script>
+
+    <div id="lblGrammarCaret1" align="right" style="color: white; background-color: black; font-family: 'Fira Code', monospace; padding:0; border: 0; margin: 0; font-size: 0.75em; size: 0.75em; position: absolute; left: 0; right: 0; bottom: 0;">(1, 1)</div>
+    <div id="err" align="left" style="color: white; font-family: 'Fira Code', monospace; padding:0; border: 0; margin: 0; font-size: 0.75em; size: 0.75em; position: absolute; left: 0; right: 0; bottom: 0;"></div>
+    
+    <div onclick="switchToTree()" align="center" style="user-select:none; cursor: pointer; color: black; background-color: white; font-family: 'Fira Code', monospace; padding: 0.5em; position: absolute; right: 2em; top: 1em; width: 10em;">tree</div>
+    <script>
+        function switchToTree() {
+            if(!parsed) {
+                window.alert("Data contains errors. Please fix them before switching to the tree panel.")
+                input1.setFocus();
+            }
+            else {
+                document.getElementById('treec').style.visibility = "visible";
+                document.getElementById('edit').style.visibility = "hidden";
+                document.getElementById('tree').scrollTop = 0;
+                document.getElementById('tree').focus();
+            }
+        }
+    </script>
+</div>
+
+<div id="treec" style="visibility: hidden;">
+    <div id="tree" style="overflow: auto; padding: 0; border: 0; margin: 0; position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: row; justify-content: center;">
+        <div style="font-size: 0.75em;">
+            <h1 id="title" align="center"></h1>
+            <p align="center">
+            <pre id="treeContent"></pre>
+            </p>
+        </div>
+    </div>
+    <div onclick="switchToEdit()"  align="center" style="user-select:none; cursor: pointer; color: white; background-color: black; font-family: 'Fira Code', monospace; padding: 0.5em; position: absolute; right: 2em; top: 1em; width: 10em;">data</div>
+    <script>
+        function switchToEdit() {
+            document.getElementById('edit').style.visibility = "visible";
+            document.getElementById('treec').style.visibility = "hidden";
+            input1.setFocus();
+        }
+    </script>
+</div>
+
+<script>
+let parsed = null
+
+let loza = `
+(DATA
+    (TITLE 'King Charles III<br>Lineage')
+    (TREE
+        (PARENT
+            (parents 'Queen Elizabeth II and Prince Philip'))
+        
+        (CHILDREN
+            (TREE
+                (PARENT
+                    (son 'Charles Philip Artur George' 'Born Nov 14, 1948, London')
+                    (spouse 'Diana'))
+                
+                (CHILDREN
+                    (TREE
+                        (PARENT
+                            (son 'William Arthur Philip Louis' 'Born Jun 21, 1982, London')
+                            (spouse 'Catherine'))
+                                
+                        (CHILDREN
+                            (LEAF
+                                (son 'George Alexander Louis' 'Born Jul 22, 2013, London'))
+                            
+                            (LEAF
+                                (daughter 'Charlotte Elizabeth Diana' 'Born May 2, 2015, London'))
+                            
+                            (LEAF
+                                (son 'Louis Arthur Charles' 'Born Apr 23, 2018, London'))))
+                    
+                    (TREE
+                        (PARENT
+                            (son 'Henry Charles Albert David' 'Born Sep 15, 1984, London')
+                            (spouse 'Meghan'))
+                                
+                        (CHILDREN
+                            (LEAF
+                                (son 'Arhcie Harrison Mountbatten-Windsor' 'Born May 6, 2019, Santa Barbara'))
+                            
+                            (LEAF
+                                (daughter 'Lilibet Diana Mountbatten-Windsor' 'Born Jun 4, 2021, Santa Barbara')))))))))
+`;
+
+function compile(program) {
+    let removeComments = function (expr) {
+        if (Array.isArray (expr)) {
+            let result = []
+            for (let i = 0; i < expr.length; i++) {
+                if (!Array.isArray (expr[i])) {
+                    result.push (expr[i]);
+                }
+                else if (expr[i][0] !== "**") {
+                    result.push (removeComments (expr[i]))
+                }
+            }
+            
+            return result;
+        }
+        else {
+            return expr;
+        }
+    }
+    
+    let skipComments = function (path, sexpr) {
+        let result = [...path];
+        let ts = sexpr;
+        for (let i = 0; i < path.length; i++) {
+            if (ts[result[i]]){
+                for (let j = 0; j <= result[i]; j++) {
+                    if (ts[j] && ts[j][0] == "**") {
+                        result[i]++;
+                    }
+                }
+                
+                ts = ts[result[i]];
+            }
+        }
+        
+        return result;
+    }
+
+    let syntax = `
+        (GRAMMAR
+            (RULE START grammar)
+
+            (RULE grammar
+                (LIST "DATA"
+                    (LIST title
+                        (LIST tree
+                            ()))))
+
+            (RULE title
+                (LIST "TITLE"
+                    (LIST ATOMIC
+                        ())))
+            
+            (RULE tree
+                (LIST "TREE"
+                    (LIST parent
+                        (LIST children
+                            ()))))
+
+            (RULE parent
+                (LIST "PARENT"
+                    listoflists))
+
+            (RULE children
+                (LIST "CHILDREN"
+                    trees))
+
+            (RULE tree
+                (LIST "LEAF"
+                    listoflists))
+            
+            (RULE trees
+                (LIST tree
+                    trees))
+
+            (RULE trees
+                (LIST tree
+                    ()))
+            
+            (RULE listoflists
+                (LIST list
+                    listoflists))
+                    
+            (RULE listoflists
+                (LIST list
+                    ()))
+                    
+            (RULE list
+                (LIST ATOMIC
+                    next))
+
+            (RULE next
+                (LIST ATOMIC
+                    next))
+            
+            (RULE next
+                (LIST ATOMIC
+                    ()))
+
+        )
+    `;
+
+    let sSyntax = SExpr.parse (syntax);
+    let sProgram = SExpr.parse (program);
+    
+    if (sProgram.err) {
+        document.getElementById("err").innerHTML = "ERROR:\n" + sProgram.err + " at " + "(" + (sProgram.pos.y + 1) + ", " + (sProgram.pos.x + 1) + ")";
+        parsed = null;
+        return;
+    }
+    
+    let ast = Parser.parse (program, sSyntax);
+    
+    if (!ast.err) {
+        document.getElementById("err").innerHTML = ""
+        parsed = removeComments (ast);
+        setTree(parsed[1][1], parsed[2]);
+    }
+    else {
+        let msg = SExpr.getPosition (program, skipComments (ast.path, ast));
+        document.getElementById("err").innerHTML = "ERROR: " + msg.err + " at " + "(" + (msg.pos.y + 1) + ", " + (msg.pos.x + 1) + "), found " + msg.found;
+        parsed = null;
+    }
+}
+
+document.getElementById("input").addEventListener('keyup', () => {
+    compile(input1.getValue());
+});
+
+compile(loza);
+
+function setTree(title, content) {
+        document.getElementById("title").innerHTML = title
+        document.getElementById("treeContent").textContent = "\n" + Tree.getTree(content) + "\n";
+}
+
+setTimeout(function() {
+    input1.setValue(loza);
+    input1.setSelectionStart (0);
+    input1.setSelectionEnd (0);
+    input1.setFocus();
+}, 0);
+
+</script>
+
+</body>
+</html>
+
