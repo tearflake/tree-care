@@ -1,6 +1,6 @@
 # DataTree
 
-DataTree is a parser-driven system that converts a text data into visual trees. This project started as my personal family tree making application. Along the way, it turned into a minimalistic universal tree visualizer, supporting rich nodes with multi-line key-value pairs, making it suitable for family trees, organizational charts, taxonomies, and hierarchies using a simple S-expression language.
+DataTree is a parser-driven system that converts a text data into visual trees. This project started as my personal family tree making application. Along the way, it turned into a minimalistic universal tree visualizer, supporting rich nodes with multi-line key-value pairs, making it suitable for family trees, organizational charts, taxonomies, and hierarchies using a simple S-expression format.
 
 ## use instructions
 
